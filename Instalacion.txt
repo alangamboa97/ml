@@ -1,0 +1,165 @@
+sudo apt-get update 
+sudo apt-get upgrade 
+------------------------------------------------jetson stats
+sudo apt-get update 
+sudo apt install python3-pip
+sudo pip3 install -U jetson-stats
+sudo reboot
+jtop
+
+
+------------------------------------------------swap file
+sudo systemctl disable nvzramconfig
+sudo fallocate -l 4G /mnt/4G.swap
+sudo mkswap /mnt/4G.swap
+sudo swapon /mnt/4G.swap
+
+cd ..
+cd ..
+cd etc/
+
+sudo gedit fstab
+
+//Alli colocan lo siguiente y guardan
+/mnt/4G.swap	none	swap	sw	0	0
+
+
+// Si queremos habilitar la memoria zram de nuevo
+sudo systemctl enable nvzramconfig
+
+
+free 
+free -h
+
+------------------------------------------------CUDA 
+git clone https://github.com/mdegans/nano_build_opencv.git
+cd nano_build_opencv/
+gedit build_opencv.sh
+
+
+#Modificar..
+JOBS=4  # puede establecer esto en 4 si tiene un archivo de intercambio (swapfile)
+    # de lo contrario, un Nano se ahogará hacia el final de la construcción
+-D CUDA_ARCH_BIN=5.3 #solo dejar 5.3 la cual es para jetson nano
+CUDA=8.6
+
+
+./build_opencv.sh 4.5.4
+
+------------------------------------------------dlib
+pip3 install dlib
+------------------------------------------------boto3
+sudo pip3 install boto3
+------------------------------------------------imutils
+pip3 install imutils
+------------------------------------------------geocoder
+pip3 install geocoder
+------------------------------------------------Numpy
+pip3 install numpy
+
+------------------------------------------------Tensorflow - Python 3.6+JetPack4.6.3
+
+#Referencia: https://forums.developer.nvidia.com/t/official-tensorflow-for-jetson-nano/71770
+
+sudo apt-get update
+sudo apt-get install libhdf5-serial-dev hdf5-tools libhdf5-dev zlib1g-dev zip libjpeg8-dev liblapack-dev libblas-dev gfortran
+sudo apt-get install python3-pip
+sudo pip3 install -U pip testresources setuptools
+sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
+sudo pip3 install -U numpy==1.19.4 future mock keras_preprocessing keras_applications gast==0.2.1 protobuf pybind11 cython pkgconfig packaging
+sudo pip3 install --extra-index-url https://developer.download.nvidia.com/compute/redist/jp/v461 tensorflow
+
+------------------------------------------------Keras
+pip3 install keras==2.7.0
+
+------------------------------------------------Probar camara
+gst-launch-1.0 nvarguscamerasrc ! 'video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, format=(string)NV12' ! nvvidconv ! xvimagesink -e
+
+------------------------------------------------SIM7600G-H 4G for Jetson Nano
+referencia:https://www.waveshare.com/wiki/SIM7600G-H_4G_for_Jetson_Nano#4G_Connecting
+---------------------Instalar librerias 
+sudo apt-get update
+sudo apt-get install python3-pip
+sudo pip3 install pyserial
+mkdir -p ~/Documents/SIM7600X_4G_for_JETSON_NANO
+wget -P ~/Documents/SIM7600X_4G_for_JETSON_NANO/ https://www.waveshare.com/w/upload/6/64/SIM7600X_4G_for_JETSON_NANO.tar.gz
+cd ~/Documents/SIM7600X_4G_for_JETSON_NANO/
+tar -xvf SIM7600X_4G_for_JETSON_NANO.tar.gz
+sudo pip3 install Jetson.GPIO
+sudo groupadd -f -r gpio
+sudo usermod -a -G gpio nano
+sudo udevadm control --reload-rules && sudo udevadm trigger
+sudo apt-get install minicom
+
+---------------------Software Setup
+sudo apt-get update
+sudo apt-get install p7zip python3-serial minicom Jetson.GPIO -y
+wget https://www.waveshare.com/w/upload/9/9b/SIM7600X_4G_for_JETSON_NANO.7z
+p7zip --uncompress SIM7600X_4G_for_JETSON_NANO.7z
+
+
+sudo minicom -s 
+
+---------------------Pruebas con minicom
+echo 200 > /sys/class/gpio/export
+echo out > /sys/class/gpio200/direction
+echo 1 > /sys/class/gpio200/value
+echo 0 > /sys/class/gpio200/value
+
+sudo minicom -D /dev/ttyTHS1 -b 115200
+
+---------------------Conexion 4G (LTE)
+---------#Open minicom by command
+sudo su
+killall ModemManager
+minicom -D /dev/ttyUSB2
+---------Type the following command to check.
+AT+CNMP=38
+AT+CSQ
+AT+CREG?
+AT+COPS?
+AT+CPSI?
+
+---------#Download driver
+cd
+wget https://www.waveshare.com/w/upload/4/46/Simcom_wwan.zip
+unzip Simcom_wwan.zip
+cd simcom_wwan
+sudo su
+make
+
+---------#Use root permission to install the driver
+insmod simcom_wwan.ko
+lsmod
+dmesg
+
+---------#Check if the wwan0 interface is recognized.
+ifconfig -a
+
+---------#Enable the wwan0 interface.
+ifconfig wwan0 up
+
+---------#Dailing by Minicom.
+minicom -D /dev/ttyUSB2
+AT$QCRMCALL=1,1
+
+---------#Allocate IP
+apt-get install udhcpc
+udhcpc -i wwan0
+------------------------------------------------activas servicio GNNS
+AT+CGNSPWR=1 lo habilita 
+AT+CGNSPWR=0  lo deshabilita
+
+
+------------------------------------------------Ejecutar archivo con GPU python 
+python3 mor.py -b=5 -t=7
+
+
+------------------------------------------------ instalar tensort 
+sudo apt install nvidia-tensorrt
+dpkg -l | grep nvidia-tensorrt
+------------------------------------------captura de video python3 
+gst_str = ('nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)720, height=(int)480, format=(string)NV12, framerate=(fraction)15/1 ! '
+               'nvvidconv flip-method=2 ! video/x-raw, width=(int)224, height=(int)224, format=(string)BGRx ! '
+               'videoconvert ! video/x-raw, format=(string)BGR ! appsink')
+
