@@ -48,6 +48,7 @@ def convert_avi_to_mp4(input_file, output_file):
 # Uso del método
 input_file = 'prueba.avi'
 output_file = 'video.mp4'
+video_count = 0
 
 
 #variables
@@ -72,9 +73,9 @@ power_key = 6
 rec_buff = ''
 rec_buff2 = ''
 time_count = 0
-file = id + '.mp4'
-fourcc = cv2.VideoWriter_fourcc(*'X264')
-video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
+file = file = 'PRUEBA' + id  + '.avi'
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+video = None
 conductorId = conductor['Item']
 print(conductorId['nombre'])
 
@@ -86,7 +87,7 @@ url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
 
 # Inicializar la cámara y tomar la instancia
 gst_str = ('nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, format=(string)NV12, framerate=(fraction)5/1 ! '
-               'nvvidconv flip-method=2 ! video/x-raw, width=(int)640, height=(int)480, format=(string)BGRx ! '
+               'nvvidconv flip-method=0 ! video/x-raw, width=(int)640, height=(int)480, format=(string)BGRx ! '
                'videoconvert ! video/x-raw, format=(string)BGR ! appsink')
 cap = cv2.VideoCapture(gst_str, cv2.CAP_GSTREAMER)
 
@@ -139,6 +140,7 @@ def upload_video(file):
             
         },
             )
+    print('Subiendo video...')
 
 def cal_yawn(landmarks):
 	top_lip = landmarks[50:53]
@@ -246,19 +248,34 @@ while True:
             sleep += 1
             drowsy = 0
             active = 0
-            if (sleep > 6):
+            if (sleep > 4):
                 status = "Dormido"
-                color = (255, 0, 0)
+                color = (255,0,0)
+                if video is not None:
+                    video.release()
+                video_filename = f'video_{video_count}.avi'
+                video_count +=1
+                video = cv2.VideoWriter(video_filename, fourcc, 6, (640, 480))
                 video.write(frame)
-                upload_video(file)
+                upload_video(video_filename)
+        
 
         elif (left_blink == 1 or right_blink == 1):
             sleep = 0
             active = 0
             drowsy += 1
-            if (drowsy > 6):
+            if (drowsy > 4):
                 status = "Somnoliento"
                 color = (0, 0, 255)
+                
+                if video is not None:
+                    video.release()
+                video_filename = f'video_{video_count}.avi'
+                video_count +=1
+                video = cv2.VideoWriter(video_filename, fourcc, 6, (640, 480))
+                video.write(frame)
+                upload_video(video_filename)
+            
 
         else:
             drowsy = 0
@@ -305,3 +322,5 @@ while True:
     cv2.imshow('CSI camera' , frame) # mostrar imagen en una ventana.
     if cv2.waitKey(1) & 0xFF == ord('q') : #presionar la tecla 'q' para deter la ejecución del programa. 
         break
+    if video is not None:
+        video.release()

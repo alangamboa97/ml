@@ -7,7 +7,7 @@ import ffmpeg
 import json
 import uuid
 import geocoder
-from requests_aws4auth import AWS4Auth
+#from requests_aws4auth import AWS4Auth
 import requests
 from imutils import face_utils
 from cv2 import VideoWriter, VideoWriter_fourcc
@@ -63,9 +63,9 @@ power_key = 6
 rec_buff = ''
 rec_buff2 = ''
 time_count = 0
-file = id + '.mp4'
-fourcc = cv2.VideoWriter_fourcc(*'X264')
-video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
+file = 'DIC' + id  + '.mp4'
+fourcc = cv2.VideoWriter_fourcc(*'H264')
+video = None
 conductorId = conductor['Item']
 print(conductorId['nombre'])
 
@@ -76,7 +76,7 @@ url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
 #Initializing the camera and taking the instance
 
 gst_str = ('nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, format=(string)NV12, framerate=(fraction)6/1 ! '
-               'nvvidconv flip-method=2 ! video/x-raw, width=(int)640, height=(int)480, format=(string)BGRx ! '
+               'nvvidconv flip-method=0 ! video/x-raw, width=(int)640, height=(int)480, format=(string)BGRx ! '
                'videoconvert ! video/x-raw, format=(string)BGR ! appsink')
 cap = cv2.VideoCapture(gst_str, cv2.CAP_GSTREAMER)
 
@@ -178,10 +178,12 @@ while True:
 		
             if sleep>4 :
                 status="SOMNOLENCIA!!!"
-                video.write(frame)
                 color = (255,0,0)
-                upload_video(file)
 
+                if video is None:
+                    video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
+                video.write(frame)
+                upload_video(file)  
 			
 
         elif left_blink==1 or right_blink==1 :
@@ -189,7 +191,7 @@ while True:
             active=0		
             drowsy+=1
             if(drowsy>6):
-                status="Drowsy !"
+                status="Drowsy!"
                 color = (0,0,255)
                 
 
@@ -211,3 +213,7 @@ while True:
     key = cv2.waitKey(1)
     if key == 27:
       	break
+    
+if video is not None:
+    video.release()
+
