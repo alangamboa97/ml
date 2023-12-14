@@ -14,7 +14,7 @@ from cv2 import VideoWriter, VideoWriter_fourcc
 from datetime import datetime
 from decimal import Decimal
 import os
-
+from media_convert import start_media_convert_job
 
 
 #credenciales
@@ -25,14 +25,6 @@ dynamodb = boto3.resource('dynamodb',aws_access_key_id='AKIAVUQ3J33Z7NMO7M5S',
 table = dynamodb.Table('Incidencia-trjjwxbd3bbjrjauppwd23ijpi-dev')
 conductores = dynamodb.Table('Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev')
 
-def convert_avi_to_mp4(input_file, output_file):
-    ffmpeg_cmd = ['ffmpeg', '-i', input_file, '-c:v', 'copy', '-c:a', 'copy', output_file]
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode == 0:
-        print("La conversión se ha completado.")
-    else:
-        print("Ocurrió un error durante la conversión:", stderr.decode('utf-8'))
 
 # Uso del método
 input_file = 'prueba.avi'
@@ -68,7 +60,7 @@ fourcc = cv2.VideoWriter_fourcc(*'H264')
 video = None
 conductorId = conductor['Item']
 print(conductorId['nombre'])
-
+bucket_output = 'alan-video-output'
 
 url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
 
@@ -128,6 +120,12 @@ def upload_video(file):
             
         },
             )
+    #convertir el archivo avi a mp4 mediante mediaconvert
+    try:
+        response = start_media_convert_job(bucket, file,)
+    except:
+         print("Error al convertir archivo")
+
 
 def compute(ptA,ptB):
 	dist = np.linalg.norm(ptA - ptB)
@@ -183,7 +181,8 @@ while True:
                 if video is None:
                     video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
                 video.write(frame)
-                upload_video(file)  
+                upload_video(file)
+  
 			
 
         elif left_blink==1 or right_blink==1 :

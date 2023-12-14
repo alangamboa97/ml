@@ -3,7 +3,9 @@ import boto3
 
 def start_media_convert_job(input_bucket, input_key, output_bucket, output_key):
     # Reemplaza 'tu_region' con la región AWS adecuada
-    mediaconvert_client = boto3.client('mediaconvert', region_name='tu_region')
+    mediaconvert_client = boto3.client('mediaconvert',aws_access_key_id='AKIAVUQ3J33Z7NMO7M5S',
+                        aws_secret_access_key='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', 
+                              region_name='us-east-1')
 
     job_settings = {
         "Input": {
@@ -39,8 +41,3 @@ def start_media_convert_job(input_bucket, input_key, output_bucket, output_key):
 
     return response
 
-
-# Llamada a la función para iniciar la conversión
-response = start_media_convert_job(
-    'bucket_de_entrada', 'video.avi', 'bucket_de_salida', 'video.mp4')
-print(response)

@@ -18,6 +18,7 @@ from scipy.spatial import distance as dist
 import os
 import dlib
 import time
+from media_convert import start_media_convert_job
 
 # from tracker import start_tracking
 # from GPS import get_gps_position
@@ -36,19 +37,12 @@ dynamodb = boto3.resource('dynamodb',aws_access_key_id='AKIAVUQ3J33Z7NMO7M5S',
 table = dynamodb.Table('Incidencia-trjjwxbd3bbjrjauppwd23ijpi-dev')
 conductores = dynamodb.Table('Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev')
 
-def convert_avi_to_mp4(input_file, output_file):
-    ffmpeg_cmd = ['ffmpeg', '-i', input_file, '-c:v', 'copy', '-c:a', 'copy', output_file]
-    process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode == 0:
-        print("La conversión se ha completado.")
-    else:
-        print("Ocurrió un error durante la conversión:", stderr.decode('utf-8'))
 
 # Uso del método
 input_file = 'prueba.avi'
 output_file = 'video.mp4'
 video_count = 0
+start_recording = 0
 
 
 #variables
@@ -56,6 +50,7 @@ video_count = 0
 location = geocoder.ip('me')
 print(location.latlng)
 coordenadas = json.loads(json.dumps(location.latlng), parse_float=Decimal)
+bucket_output = 'alan-video-output'
 
 conductor = conductores.get_item(
 	TableName='Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev',
@@ -73,7 +68,8 @@ power_key = 6
 rec_buff = ''
 rec_buff2 = ''
 time_count = 0
-file = file = 'PRUEBA' + id  + '.avi'
+file = 'PRUEBA' + id  + '.avi'
+file_output = 'PRUEBA' + id  + '.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 video = None
 conductorId = conductor['Item']
@@ -140,6 +136,13 @@ def upload_video(file):
             
         },
             )
+    
+    try:
+        response = start_media_convert_job(bucket, file, bucket_output, file_output)
+        print(response)
+    except:
+         print("Error al convertir archivo")
+
     print('Subiendo video...')
 
 def cal_yawn(landmarks):
@@ -251,13 +254,17 @@ while True:
             if (sleep > 4):
                 status = "Dormido"
                 color = (255,0,0)
-                if video is not None:
-                    video.release()
-                video_filename = f'video_{video_count}.avi'
-                video_count +=1
-                video = cv2.VideoWriter(video_filename, fourcc, 6, (640, 480))
+                if start_recording == 0:
+                    start_recording = time.time()
+                    video = cv2.VideoWriter(file, fourcc, 4, (640, 480))
+                    print("Grabando video...")
                 video.write(frame)
-                upload_video(video_filename)
+
+                
+                if time.time() - start_recording > 5:
+                    start_recording = 0
+                    video.release()
+                    upload_video(file)
         
 
         elif (left_blink == 1 or right_blink == 1):
@@ -268,14 +275,20 @@ while True:
                 status = "Somnoliento"
                 color = (0, 0, 255)
                 
-                if video is not None:
-                    video.release()
-                video_filename = f'video_{video_count}.avi'
-                video_count +=1
-                video = cv2.VideoWriter(video_filename, fourcc, 6, (640, 480))
+                color = (255,0,0)
+                if start_recording == 0:
+                    start_recording = time.time()
+                    video = cv2.VideoWriter(file, fourcc, 4, (640, 480))
+                    print("Grabando video...")
                 video.write(frame)
-                upload_video(video_filename)
-            
+
+                
+                if time.time() - start_recording > 5:
+                    start_recording = 0
+                    video.release()
+                    upload_video(file)
+        
+                    
 
         else:
             drowsy = 0
