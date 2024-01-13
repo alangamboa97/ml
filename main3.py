@@ -60,7 +60,7 @@ fourcc = cv2.VideoWriter_fourcc(*'H264')
 video = None
 conductorId = conductor['Item']
 print(conductorId['nombre'])
-bucket_output = 'alan-video-output'
+
 
 url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
 
@@ -121,11 +121,7 @@ def upload_video(file):
         },
             )
     #convertir el archivo avi a mp4 mediante mediaconvert
-    try:
-        response = start_media_convert_job(bucket, file,)
-    except:
-         print("Error al convertir archivo")
-
+  
 
 def compute(ptA,ptB):
 	dist = np.linalg.norm(ptA - ptB)
@@ -213,6 +209,6 @@ while True:
     if key == 27:
       	break
     
-if video is not None:
-    video.release()
+    if video is not None:
+        video.release()
 

@@ -119,6 +119,7 @@ AT+CSQ
 AT+CREG?
 AT+COPS?
 AT+CPSI?
+AT+CGPS?
 
 ---------#Download driver
 cd

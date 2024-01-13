@@ -11,18 +11,11 @@ def create_tracker(tracker_name):
     client = boto3.client('location')
     response = client.create_tracker(
         TrackerName=tracker_name,
-        Description='My Tracker'
+        Description='MyTracker'
     )
     print("Tracker created successfully!")
     return response
 
-def get_current_location():
-    geolocator = Nominatim(user_agent="me")
-    location = geolocator.geocode(query='', exactly_one=True, timeout=10)
-    if location:
-        return location.latitude, location.longitude
-    else:
-        return None
 
 
 def start_tracking(tracker_name, device_id, latitude, longitude):

@@ -3,8 +3,6 @@ import cv2
 import numpy as np
 import boto3
 import dlib
-import subprocess
-import ffmpeg
 import json
 import uuid
 import geocoder
@@ -18,13 +16,12 @@ from scipy.spatial import distance as dist
 import os
 import dlib
 import time
-from media_convert import start_media_convert_job
+
+#import gps
 
 # from tracker import start_tracking
 # from GPS import get_gps_position
-# Numpy for array related functions
-#from requests_aws4auth import AWS4Auth
-#import moviepy.editor as moviepy
+
 
 
 #---------------------------------------Incidencia (video y coordenadas)------------------------------------------------------#
@@ -39,18 +36,24 @@ conductores = dynamodb.Table('Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev')
 
 
 # Uso del método
-input_file = 'prueba.avi'
-output_file = 'video.mp4'
+
 video_count = 0
 start_recording = 0
+recording_duration = 5  # Duración de la grabación en segundos
 
 
 #variables
 
 location = geocoder.ip('me')
+
 print(location.latlng)
-coordenadas = json.loads(json.dumps(location.latlng), parse_float=Decimal)
-bucket_output = 'alan-video-output'
+try:
+    coordenadas = json.loads(json.dumps(location.latlng), parse_float=Decimal)
+    
+    #coordenadas = gps.get_gps_position()
+except:
+    print("Error al obtener coordenadas")
+
 
 conductor = conductores.get_item(
 	TableName='Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev',
@@ -68,12 +71,12 @@ power_key = 6
 rec_buff = ''
 rec_buff2 = ''
 time_count = 0
-file = 'PRUEBA' + id  + '.avi'
-file_output = 'PRUEBA' + id  + '.mp4'
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
+file = 'PRUEBA' + id  + '.mp4'
+fourcc = cv2.VideoWriter_fourcc(*'H264')
 video = None
 conductorId = conductor['Item']
 print(conductorId['nombre'])
+somnolence_detected = False 
 
 
 url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
@@ -83,7 +86,7 @@ url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
 
 # Inicializar la cámara y tomar la instancia
 gst_str = ('nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, format=(string)NV12, framerate=(fraction)5/1 ! '
-               'nvvidconv flip-method=0 ! video/x-raw, width=(int)640, height=(int)480, format=(string)BGRx ! '
+               'nvvidconv flip-method=2 ! video/x-raw, width=(int)640, height=(int)480, format=(string)BGRx ! '
                'videoconvert ! video/x-raw, format=(string)BGR ! appsink')
 cap = cv2.VideoCapture(gst_str, cv2.CAP_GSTREAMER)
 
@@ -100,6 +103,8 @@ status = ""
 color = (0, 0, 0)
 
 def upload_video(file):
+
+    
     
     client = boto3.client('s3', 
                         aws_access_key_id='AKIAVUQ3J33Z7NMO7M5S',
@@ -117,33 +122,37 @@ def upload_video(file):
     #abrir archivo
     data = open(filename, 'rb')
 
+   
+
     #subir archivo
+
     client.upload_file(filename, bucket, file)
-    table.put_item(
-        Item={
-            'id': id,
-            'estado': None,
-	    	'url_video': url_video,
-		    'conductorIncidenciasId': conductorId['id'],
-		    'fecha': fecha_actual,
-		    'hora': hora_legible,
-		    'ubicacion': coordenadas, 	
-	    	'createdAt': datetime.now().isoformat(timespec='milliseconds') +'Z',
-		    'updatedAt': datetime.now().isoformat(timespec='milliseconds') +'Z',
-		    '__typename': 'Incidencia',
-		    
-
-            
-        },
-            )
     
-    try:
-        response = start_media_convert_job(bucket, file, bucket_output, file_output)
-        print(response)
-    except:
-         print("Error al convertir archivo")
+    table.put_item(
+                Item={
+                    'id': id,
+                    'estado': None,
+                    'url_video': url_video,
+                    'conductorIncidenciasId': conductorId['id'],
+                    'fecha': fecha_actual,
+                    'hora': hora_legible,
+                    'ubicacion': coordenadas, 	
+                    'createdAt': datetime.now().isoformat(timespec='milliseconds') +'Z',
+                    'updatedAt': datetime.now().isoformat(timespec='milliseconds') +'Z',
+                    '__typename': 'Incidencia',
+                    
 
-    print('Subiendo video...')
+                    
+                },
+                    )
+    print("Incidencia registrada")
+    try:
+            #start_media_convert_job(bucket, file, bucket_output, file_output)
+        print("Job started")    
+    except:
+        print("Error al convertir archivo")
+
+    print('Video subido... ', url_video)
 
 def cal_yawn(landmarks):
 	top_lip = landmarks[50:53]
@@ -254,19 +263,18 @@ while True:
             if (sleep > 4):
                 status = "Dormido"
                 color = (255,0,0)
-                if start_recording == 0:
-                    start_recording = time.time()
-                    video = cv2.VideoWriter(file, fourcc, 4, (640, 480))
-                    print("Grabando video...")
+                if video is None:
+                       
+                        video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
                 video.write(frame)
 
-                
-                if time.time() - start_recording > 5:
-                    start_recording = 0
-                    video.release()
-                    upload_video(file)
-        
+                if not somnolence_detected:
+                    somnolence_detected = True
 
+            
+                    
+                    
+                
         elif (left_blink == 1 or right_blink == 1):
             sleep = 0
             active = 0
@@ -274,19 +282,19 @@ while True:
             if (drowsy > 4):
                 status = "Somnoliento"
                 color = (0, 0, 255)
-                
-                color = (255,0,0)
-                if start_recording == 0:
-                    start_recording = time.time()
-                    video = cv2.VideoWriter(file, fourcc, 4, (640, 480))
-                    print("Grabando video...")
+                if video is None:
+                        
+                        video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
                 video.write(frame)
-
                 
-                if time.time() - start_recording > 5:
-                    start_recording = 0
-                    video.release()
-                    upload_video(file)
+                if not somnolence_detected:
+                    somnolence_detected = True
+           
+                    
+                
+               
+
+           
         
                     
 
@@ -297,6 +305,9 @@ while True:
             if (active > 6):
                 status = "Activo"
                 color = (0, 255, 0)
+                if somnolence_detected:
+                    somnolence_detected = False
+
 
 
         cv2.putText(frame, status, (100,100), cv2.FONT_HERSHEY_SIMPLEX, 1.2, color,3) #Escribir texto en la imagen
@@ -330,10 +341,26 @@ while True:
         for n in range(0, 68):  
             (x, y) = landmarks[n]
             cv2.circle(face_frame, (x, y), 1, (255, 255, 255), -1)
-
+    
      
     cv2.imshow('CSI camera' , frame) # mostrar imagen en una ventana.
-    if cv2.waitKey(1) & 0xFF == ord('q') : #presionar la tecla 'q' para deter la ejecución del programa. 
-        break
+    
     if video is not None:
-        video.release()
+        video.write(frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        print("Tecla 'q' presionada. Finalizando el programa...")
+        if video is not None:
+            video.release()
+        if cap is not None:
+            cap.release()
+        cv2.destroyAllWindows()
+        if somnolence_detected:
+            upload_video(file)
+        break  # Salir del bucle principal
+
+# Liberar recursos y cerrar ventanas
+if video is not None:
+    video.release()
+if cap is not None:
+    cap.release()
+cv2.destroyAllWindows()
