@@ -16,7 +16,8 @@ from scipy.spatial import distance as dist
 import os
 import dlib
 import time
-
+from alarma import activar_buzzer
+import Jetson.GPIO as GPIO
 #import gps
 
 # from tracker import start_tracking
@@ -27,6 +28,9 @@ import time
 #---------------------------------------Incidencia (video y coordenadas)------------------------------------------------------#
 
 #credenciales
+
+GPIO.setmode(GPIO.BOARD)    
+
 
 dynamodb = boto3.resource('dynamodb',aws_access_key_id='AKIAVUQ3J33Z7NMO7M5S',
                         aws_secret_access_key='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', 
@@ -54,18 +58,20 @@ try:
 except:
     print("Error al obtener coordenadas")
 
-
-conductor = conductores.get_item(
-	TableName='Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev',
-	Key ={
-		'id': '001'
-	}
-)
+try:
+    conductor = conductores.get_item(
+        TableName='Conductor-trjjwxbd3bbjrjauppwd23ijpi-dev',
+        Key ={
+            'id': '001'
+        }
+    )
+except NameError as e:
+    print('Error al obtener datos del conductor', e)
 
 fecha_actual = str(datetime.now().date().today())
 fecha_hora_actual = datetime.now()
 hora_legible = fecha_hora_actual.strftime("%H:%M:%S")
-conductorId = conductor['Item']
+#conductorId = conductor['Item']
 id = str(uuid.uuid1())
 power_key = 6
 rec_buff = ''
@@ -178,12 +184,12 @@ def blinked(a, b, c, d, e, f):
     ratio = up/(2.0*down)
 
     # Comprobando si parpadea
-    if (ratio > 0.25):
+    if (ratio > 0.25): # parpadeo rapido 
         return 2
-    elif (ratio > 0.21 and ratio <= 0.25):
+    elif (ratio > 0.21 and ratio <= 0.25): # Parpadeo Nnormal 
         return 1
     else:
-        return 0
+        return 0 #no hay parpadeo 
 
 #----------------------------Variables------------#
 yawn_thresh = 45
@@ -195,6 +201,7 @@ is_yawning = False  # Indicador de si se está produciendo un bostezo
 
 #gps.power_on(power_key)
 while True:
+    id = str(uuid.uuid1())
     suc,frame = cap.read()
     
     if not suc :
@@ -256,48 +263,53 @@ while True:
                 print("Duración del bostezo:", yawn_duration, "segundos")
 
         #------------- parpadeos de los ojos----------#
-        if (left_blink == 0 or right_blink == 0):
+        if (left_blink == 0 or right_blink == 0): 
             sleep += 1
             drowsy = 0
             active = 0
             if (sleep > 4):
                 status = "Dormido"
                 color = (255,0,0)
+                
                 if video is None:
                        
                         video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
                 video.write(frame)
-
-                if not somnolence_detected:
-                    somnolence_detected = True
-
-            
-                    
-                    
                 
-        elif (left_blink == 1 or right_blink == 1):
+                if not somnolence_detected:
+                    
+                    somnolence_detected = True
+                    print("¡,,,,ALERTA! Se ha detectado somnolencia.")
+                    #activa
+                    somnolence_detected = False
+                    video.release()
+                    upload_video(file)
+                            
+                
+        elif (left_blink == 1 or right_blink == 1): 
             sleep = 0
             active = 0
             drowsy += 1
             if (drowsy > 4):
                 status = "Somnoliento"
                 color = (0, 0, 255)
+                
                 if video is None:
                         
                         video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
                 video.write(frame)
+              
                 
                 if not somnolence_detected:
+                   
                     somnolence_detected = True
-           
+                    print("¡ALERTA! Se ha detectado somnolencia.")
+                    #activar_buzzer(3)
+                    video.release()
+                    upload_video(file)
                     
-                
-               
-
-           
-        
-                    
-
+                    somnolence_detected = False
+         
         else:
             drowsy = 0
             sleep = 0
@@ -334,6 +346,8 @@ while True:
         if yawn_duration >= 5:  # Si la duración del bostezo es igual o mayor a 5 segundos se considera bostezo
             yawn_count += 1
             status = "Bostezo !!!"
+            #activar_buzzer(3)
+            print('ALERTA')
             color = (255, 255, 0)
             yawn_duration = 0  # Reiniciar la duración del bostezo
    
@@ -351,12 +365,12 @@ while True:
         print("Tecla 'q' presionada. Finalizando el programa...")
         if video is not None:
             video.release()
+            
         if cap is not None:
             cap.release()
+            
         cv2.destroyAllWindows()
-        if somnolence_detected:
-            upload_video(file)
-        break  # Salir del bucle principal
+      
 
 # Liberar recursos y cerrar ventanas
 if video is not None:
