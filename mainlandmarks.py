@@ -76,8 +76,7 @@ id = str(uuid.uuid1())
 power_key = 6
 rec_buff = ''
 rec_buff2 = ''
-time_count = 0
-file = 'PRUEBA' + id  + '.mp4'
+contador = 0
 fourcc = cv2.VideoWriter_fourcc(*'H264')
 video = None
 conductorId = conductor['Item']
@@ -85,7 +84,7 @@ print(conductorId['nombre'])
 somnolence_detected = False 
 
 
-url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
+
 
 
 #---------------------------------------Deteccion de somnolencia------------------------------------------------------#
@@ -108,7 +107,7 @@ active = 0
 status = ""
 color = (0, 0, 0)
 
-def upload_video(file):
+def upload_video(file, url_video):
 
     
     
@@ -267,23 +266,31 @@ while True:
             sleep += 1
             drowsy = 0
             active = 0
+            
             if (sleep > 4):
+                id += str(contador + 1)
+
+                file = 'PRUEBA' + id  + '.mp4'
+                url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
                 status = "Dormido"
                 color = (255,0,0)
                 
                 if video is None:
                        
                         video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
-                video.write(frame)
+                if video is not None:
+                    video.write(frame)
                 
                 if not somnolence_detected:
                     
                     somnolence_detected = True
+                    print('Valor somnolence ', somnolence_detected)
                     print("¡,,,,ALERTA! Se ha detectado somnolencia.")
+                    activar_buzzer(2)
                     #activa
-                    somnolence_detected = False
-                    video.release()
-                    upload_video(file)
+                   
+                   
+               
                             
                 
         elif (left_blink == 1 or right_blink == 1): 
@@ -291,24 +298,29 @@ while True:
             active = 0
             drowsy += 1
             if (drowsy > 4):
+                id += str(contador + 1)
+                file = 'PRUEBA' + id  + '.mp4'
+                url_video = 'https://d3gh7t05x84ron.cloudfront.net/'+ file
                 status = "Somnoliento"
                 color = (0, 0, 255)
                 
                 if video is None:
                         
                         video = cv2.VideoWriter(file, fourcc, 6, (640, 480))
-                video.write(frame)
+                if video is not None:
+                    video.write(frame)
               
                 
                 if not somnolence_detected:
                    
                     somnolence_detected = True
+                    print('Valor somnolence ', somnolence_detected)
                     print("¡ALERTA! Se ha detectado somnolencia.")
-                    #activar_buzzer(3)
-                    video.release()
-                    upload_video(file)
+                    activar_buzzer(2)
+                    #video.release()
+                    #upload_video(file)
                     
-                    somnolence_detected = False
+                
          
         else:
             drowsy = 0
@@ -317,8 +329,12 @@ while True:
             if (active > 6):
                 status = "Activo"
                 color = (0, 255, 0)
+               
+                    
                 if somnolence_detected:
                     somnolence_detected = False
+                    video.release()
+                    #upload_video(file, url_video)
 
 
 
@@ -343,7 +359,7 @@ while True:
                 #upload_video(file)
 
         #----------------------------Conteo de Bostezos----------------------#
-        if yawn_duration >= 5:  # Si la duración del bostezo es igual o mayor a 5 segundos se considera bostezo
+        if yawn_duration >= 4:  # Si la duración del bostezo es igual o mayor a 5 segundos se considera bostezo
             yawn_count += 1
             status = "Bostezo !!!"
             #activar_buzzer(3)
